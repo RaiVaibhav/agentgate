@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { use, useState, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { CircleIcon, Home, LogOut } from 'lucide-react';
+import { CircleIcon, Home, LogOut, ShieldCheck } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,13 @@ function UserMenu() {
           className="text-sm font-medium text-gray-700 hover:text-gray-900"
         >
           Pricing
+        </Link>
+        <Link
+          href="/agents"
+          className="text-sm font-medium text-gray-700 hover:text-gray-900 flex items-center gap-1"
+        >
+          <ShieldCheck className="h-4 w-4" />
+          Agents
         </Link>
         <Button asChild className="rounded-full">
           <Link href="/sign-up">Sign Up</Link>

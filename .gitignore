@@ -27,6 +27,11 @@ yarn-error.log*
 
 # local env files
 .env
+backend/**/.env
+backend/mcp-server/.env
+
+# agent permission rules (project-specific, like .env)
+rules.json
 
 # vercel
 .vercel
@@ -34,7 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.vscode
+# IDE/agent configs (local to each developer)
+.cursor/
+.claude/
+.kiro/
+.vscode/
 
 # Docker
 postgres_data/

@@ -1,0 +1,25 @@
+{
+  "name": "@agent-permission/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server that enforces agent permissions via the proxy before executing any tool",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agent-permission-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "dotenv": "^16.5.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
