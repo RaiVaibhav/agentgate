@@ -8,7 +8,22 @@
     "db:seed": "npx tsx lib/db/seed.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "proxy:dev": "pnpm --filter @agent-permission/proxy dev",
+    "proxy:migrate": "pnpm --filter @agent-permission/proxy db:migrate",
+    "proxy:generate": "pnpm --filter @agent-permission/proxy db:generate",
+    "proxy:seed": "pnpm --filter @agent-permission/proxy db:seed",
+    "dummy:dev": "pnpm --filter @agent-permission/dummy-app dev",
+    "dummy:migrate": "pnpm --filter @agent-permission/dummy-app db:migrate",
+    "dummy:generate": "pnpm --filter @agent-permission/dummy-app db:generate",
+    "backend:dev": "concurrently \"pnpm proxy:dev\" \"pnpm dummy:dev\"",
+    "mcp:build": "pnpm --filter @agent-permission/mcp-server build",
+    "mcp:dev": "pnpm --filter @agent-permission/mcp-server dev",
+    "proxy-wrap:build": "pnpm --filter @agent-permission/mcp-proxy build",
+    "proxy-wrap:dev": "pnpm --filter @agent-permission/mcp-proxy dev",
+    "gateway:dev": "pnpm --filter @agent-permission/mcp-gateway dev",
+    "gateway:build": "pnpm --filter @agent-permission/mcp-gateway build",
+    "test:e2e": "bash backend/test-e2e.sh"
   },
   "dependencies": {
     "@tailwindcss/postcss": "4.1.7",
@@ -38,5 +53,8 @@
     "tw-animate-css": "^1.3.0",
     "typescript": "^5.8.3",
     "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }

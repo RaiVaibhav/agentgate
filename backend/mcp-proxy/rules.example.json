@@ -1,0 +1,81 @@
+{
+  "_comment": "Copy this to rules.json and edit to match your project",
+
+  "toolMappings": [
+    { "tool": "read_file",        "pathArg": "path", "resourceType": "file", "action": "read"   },
+    { "tool": "write_file",       "pathArg": "path", "resourceType": "file", "action": "write"  },
+    { "tool": "create_file",      "pathArg": "path", "resourceType": "file", "action": "write"  },
+    { "tool": "edit_file",        "pathArg": "path", "resourceType": "file", "action": "write"  },
+    { "tool": "delete_file",      "pathArg": "path", "resourceType": "file", "action": "delete" },
+    { "tool": "list_directory",   "pathArg": "path", "resourceType": "file", "action": "read"   },
+    { "tool": "directory_tree",   "pathArg": "path", "resourceType": "file", "action": "read"   },
+    { "tool": "search_files",     "pathArg": "path", "resourceType": "file", "action": "read"   },
+    { "tool": "get_file_info",    "pathArg": "path", "resourceType": "file", "action": "read"   },
+    { "tool": "move_file",        "pathArg": "source", "resourceType": "file", "action": "write" }
+  ],
+
+  "rules": [
+    {
+      "comment": "--- DENY sensitive files (evaluated first — highest priority) ---",
+      "resourceType": "file", "pattern": "**/.env",         "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/.env.*",       "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/.env*",        "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/secrets/**",   "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/*secret*",     "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/*credential*", "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/*.pem",        "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/*.key",        "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "resourceType": "file", "pattern": "**/*.p12",        "action": "any", "effect": "deny", "priority": 100
+    },
+    {
+      "comment": "--- DENY writes to critical config files ---",
+      "resourceType": "file", "pattern": "**/package.json",   "action": "write",  "effect": "deny", "priority": 90
+    },
+    {
+      "resourceType": "file", "pattern": "**/package-lock.json", "action": "write", "effect": "deny", "priority": 90
+    },
+    {
+      "resourceType": "file", "pattern": "**/pnpm-lock.yaml",  "action": "write",  "effect": "deny", "priority": 90
+    },
+    {
+      "comment": "--- DENY deletes entirely ---",
+      "resourceType": "file", "pattern": "**/*",             "action": "delete", "effect": "deny", "priority": 80
+    },
+    {
+      "comment": "--- ALLOW source code reads ---",
+      "resourceType": "file", "pattern": "src/**",           "action": "read",   "effect": "allow", "priority": 1
+    },
+    {
+      "resourceType": "file", "pattern": "app/**",           "action": "read",   "effect": "allow", "priority": 1
+    },
+    {
+      "resourceType": "file", "pattern": "lib/**",           "action": "read",   "effect": "allow", "priority": 1
+    },
+    {
+      "resourceType": "file", "pattern": "components/**",    "action": "read",   "effect": "allow", "priority": 1
+    },
+    {
+      "comment": "--- ALLOW source code writes ---",
+      "resourceType": "file", "pattern": "src/**",           "action": "write",  "effect": "allow", "priority": 1
+    },
+    {
+      "resourceType": "file", "pattern": "app/**",           "action": "write",  "effect": "allow", "priority": 1
+    }
+  ]
+}

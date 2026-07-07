@@ -1,0 +1,9 @@
+packages:
+  - 'backend/*'
+  - 'backend/mcp-proxy'
+  - 'backend/mcp-gateway'
+
+allowBuilds:
+  '@tailwindcss/oxide': true
+  esbuild: true
+  sharp: true

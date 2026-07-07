@@ -1,0 +1,1 @@
+{"timestamp":"2026-06-20T18:51:17.120Z","tool":"read_text_file","resourcePath":"{\"path\":\"/Users/vaibhav/saas-starter/.env\"}","action":"unknown","effect":"denied","reason":"No permission mapping defined for tool \"read_text_file\" — denied by default","matchedRule":null}
