@@ -124,7 +124,9 @@ Watch every decision in the audit log. Revoke a session with one click — agent
 | Pure HTTP proxy — no process spawning | Safe for hosted multi-tenant deployment |
 | Streamable HTTP transport | Current MCP spec (March 2025), stateless, serverless-compatible |
 | Permissions are per-session | Same agent can have different access in different runs |
-| Default: all tools allowed | You only block what's dangerous — manageable even with 200+ tools |
+| Default-deny (fail-closed) | Unlisted tools blocked by default; zero unintended access |
+| Human-in-the-loop approvals | Risky or financial operations hold execution until operator authorization |
+| AES-256-GCM encrypted credentials | API keys/tokens encrypted at rest and masked in dashboard |
 | Path pattern rules (glob) | Allow `get_file_contents` but deny `**/.env*` |
 | Gateway URL is the only access point | Agent can't bypass — real credentials never leave the server |
 | Tool discovery via `tools/list` | Works with any MCP server — no hardcoded registry needed |

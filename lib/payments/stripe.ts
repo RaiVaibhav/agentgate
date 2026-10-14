@@ -7,7 +7,7 @@ import {
   updateTeamSubscription
 } from '@/lib/db/queries';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder_agentgate', {
   apiVersion: '2025-04-30.basil'
 });
 
@@ -147,36 +147,64 @@ export async function handleSubscriptionChange(
 }
 
 export async function getStripePrices() {
-  const prices = await stripe.prices.list({
-    expand: ['data.product'],
-    active: true,
-    type: 'recurring'
-  });
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return [
+      { id: 'price_base_mock', productId: 'prod_base_mock', unitAmount: 800, currency: 'usd', interval: 'month', trialPeriodDays: 7 },
+      { id: 'price_plus_mock', productId: 'prod_plus_mock', unitAmount: 1200, currency: 'usd', interval: 'month', trialPeriodDays: 7 },
+    ];
+  }
+  try {
+    const prices = await stripe.prices.list({
+      expand: ['data.product'],
+      active: true,
+      type: 'recurring'
+    });
 
-  return prices.data.map((price) => ({
-    id: price.id,
-    productId:
-      typeof price.product === 'string' ? price.product : price.product.id,
-    unitAmount: price.unit_amount,
-    currency: price.currency,
-    interval: price.recurring?.interval,
-    trialPeriodDays: price.recurring?.trial_period_days
-  }));
+    return prices.data.map((price) => ({
+      id: price.id,
+      productId:
+        typeof price.product === 'string' ? price.product : price.product.id,
+      unitAmount: price.unit_amount,
+      currency: price.currency,
+      interval: price.recurring?.interval,
+      trialPeriodDays: price.recurring?.trial_period_days
+    }));
+  } catch (err) {
+    console.warn('Failed to fetch Stripe prices, returning fallbacks:', err);
+    return [
+      { id: 'price_base_mock', productId: 'prod_base_mock', unitAmount: 800, currency: 'usd', interval: 'month', trialPeriodDays: 7 },
+      { id: 'price_plus_mock', productId: 'prod_plus_mock', unitAmount: 1200, currency: 'usd', interval: 'month', trialPeriodDays: 7 },
+    ];
+  }
 }
 
 export async function getStripeProducts() {
-  const products = await stripe.products.list({
-    active: true,
-    expand: ['data.default_price']
-  });
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return [
+      { id: 'prod_base_mock', name: 'Base', description: 'Base subscription plan', defaultPriceId: 'price_base_mock' },
+      { id: 'prod_plus_mock', name: 'Plus', description: 'Plus subscription plan', defaultPriceId: 'price_plus_mock' },
+    ];
+  }
+  try {
+    const products = await stripe.products.list({
+      active: true,
+      expand: ['data.default_price']
+    });
 
-  return products.data.map((product) => ({
-    id: product.id,
-    name: product.name,
-    description: product.description,
-    defaultPriceId:
-      typeof product.default_price === 'string'
-        ? product.default_price
-        : product.default_price?.id
-  }));
+    return products.data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      defaultPriceId:
+        typeof product.default_price === 'string'
+          ? product.default_price
+          : product.default_price?.id
+    }));
+  } catch (err) {
+    console.warn('Failed to fetch Stripe products, returning fallbacks:', err);
+    return [
+      { id: 'prod_base_mock', name: 'Base', description: 'Base subscription plan', defaultPriceId: 'price_base_mock' },
+      { id: 'prod_plus_mock', name: 'Plus', description: 'Plus subscription plan', defaultPriceId: 'price_plus_mock' },
+    ];
+  }
 }

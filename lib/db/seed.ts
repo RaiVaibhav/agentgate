@@ -70,7 +70,15 @@ async function seed() {
     role: 'owner',
   });
 
-  await createStripeProducts();
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      await createStripeProducts();
+    } catch (err) {
+      console.warn('Skipping Stripe product creation due to error:', err);
+    }
+  } else {
+    console.log('Skipping Stripe product creation (STRIPE_SECRET_KEY not set).');
+  }
 }
 
 seed()

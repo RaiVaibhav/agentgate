@@ -6,6 +6,8 @@ export const agents = pgTable('agents', {
   userId: integer('user_id').notNull(),
   name: text('name').notNull(),
   description: text('description'),
+  humanOwner: text('human_owner'),
+  mandate: text('mandate'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -30,6 +32,7 @@ export const sessions = pgTable('sessions', {
   startedAt: timestamp('started_at').notNull().defaultNow(),
   expiresAt: timestamp('expires_at').notNull(),
   status: text('status').notNull().default('active'),
+  mode: text('mode').notNull().default('enforce'), // 'enforce' | 'watch'
   responseCheckEnabled: text('response_check_enabled').notNull().default('false'),
 });
 
@@ -40,6 +43,7 @@ export const toolPermissions = pgTable('tool_permissions', {
   effect: text('effect').notNull(),
   pathArg: text('path_arg'),
   pathPattern: text('path_pattern'),
+  paramRules: jsonb('param_rules'),
   priority: integer('priority').notNull().default(1),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -54,26 +58,69 @@ export const auditLog = pgTable('audit_log', {
   effect: text('effect').notNull(),
   reason: text('reason').notNull(),
   matchedPermissionId: uuid('matched_permission_id').references(() => toolPermissions.id),
+  prevHash: text('prev_hash'),
+  entryHash: text('entry_hash'),
+  latencyMs: integer('latency_ms'),
+  simulatedEffect: text('simulated_effect'),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
+});
+
+export const approvals = pgTable('approvals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  sessionId: uuid('session_id')
+    .notNull()
+    .references(() => sessions.id, { onDelete: 'cascade' }),
+  agentId: uuid('agent_id')
+    .notNull()
+    .references(() => agents.id, { onDelete: 'cascade' }),
+  serviceId: uuid('service_id')
+    .notNull()
+    .references(() => services.id, { onDelete: 'cascade' }),
+  toolName: text('tool_name').notNull(),
+  toolArgs: jsonb('tool_args').notNull().default({}),
+  status: text('status').notNull().default('pending'),
+  reason: text('reason'),
+  requestedAt: timestamp('requested_at').notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: integer('resolved_by'),
+  decisionNotes: text('decision_notes'),
 });
 
 export const sessionsRelations = relations(sessions, ({ one, many }) => ({
   agent: one(agents, { fields: [sessions.agentId], references: [agents.id] }),
   service: one(services, { fields: [sessions.serviceId], references: [services.id] }),
   toolPermissions: many(toolPermissions),
+  approvals: many(approvals),
 }));
 
 export const toolPermissionsRelations = relations(toolPermissions, ({ one }) => ({
   session: one(sessions, { fields: [toolPermissions.sessionId], references: [sessions.id] }),
 }));
 
+export const approvalsRelations = relations(approvals, ({ one }) => ({
+  session: one(sessions, { fields: [approvals.sessionId], references: [sessions.id] }),
+  agent: one(agents, { fields: [approvals.agentId], references: [agents.id] }),
+  service: one(services, { fields: [approvals.serviceId], references: [services.id] }),
+}));
+
 export type Agent = typeof agents.$inferSelect;
 export type Service = typeof services.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type ToolPermission = typeof toolPermissions.$inferSelect;
+export type Approval = typeof approvals.$inferSelect;
+export type NewApproval = typeof approvals.$inferInsert;
+export type AuditLogEntry = typeof auditLog.$inferSelect;
+export type NewAuditLogEntry = typeof auditLog.$inferInsert;
 
 export type DiscoveredTool = {
   name: string;
   description?: string;
   inputSchema?: Record<string, unknown>;
 };
+
+export type ParamRule = {
+  field: string;
+  operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'not_in' | 'regex' | 'regex_not_match';
+  value: unknown;
+};
+

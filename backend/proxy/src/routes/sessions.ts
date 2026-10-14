@@ -18,16 +18,29 @@ router.post('/', async (req, res) => {
   const userId = getUserId(req);
   if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
-  const { agentId, serviceId, durationMinutes = 60, permissions, responseCheckEnabled = false } = req.body as {
+  const {
+    agentId,
+    serviceId,
+    durationMinutes = 60,
+    permissions,
+    responseCheckEnabled = false,
+    mode = 'enforce',
+  } = req.body as {
     agentId?: string;
     serviceId?: string;
     durationMinutes?: number;
     responseCheckEnabled?: boolean;
+    mode?: 'enforce' | 'watch';
     permissions?: Array<{
       toolName: string;
-      effect: 'allow' | 'deny';
+      effect: 'allow' | 'deny' | 'require_approval';
       pathArg?: string;
       pathPattern?: string;
+      paramRules?: Array<{
+        field: string;
+        operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'not_in' | 'regex' | 'regex_not_match';
+        value: unknown;
+      }>;
       priority?: number;
     }>;
   };
@@ -54,6 +67,7 @@ router.post('/', async (req, res) => {
     token: 'pending',
     expiresAt,
     status: 'active',
+    mode: mode === 'watch' ? 'watch' : 'enforce',
     responseCheckEnabled: responseCheckEnabled ? 'true' : 'false',
   }).returning();
 
@@ -73,6 +87,7 @@ router.post('/', async (req, res) => {
         effect: p.effect,
         pathArg: p.pathArg ?? null,
         pathPattern: p.pathPattern ?? null,
+        paramRules: p.paramRules ?? null,
         priority: p.priority ?? 1,
       }))
     );
@@ -87,6 +102,7 @@ router.post('/', async (req, res) => {
     token,
     expiresAt: updated.expiresAt,
     status: updated.status,
+    mode: updated.mode,
     gatewayUrl: `${GATEWAY_URL}/mcp/${token}`,
   });
 });
@@ -123,6 +139,24 @@ router.post('/:id/revoke', async (req, res) => {
   res.json({ message: 'Session revoked', session: updated });
 });
 
+// PATCH /sessions/:id/mode — toggle between 'enforce' and 'watch'
+router.patch('/:id/mode', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+  const { mode } = req.body as { mode: 'enforce' | 'watch' };
+  if (!mode || (mode !== 'enforce' && mode !== 'watch')) {
+    res.status(400).json({ error: 'mode must be either "enforce" or "watch"' });
+    return;
+  }
+
+  const [session] = await db.select().from(sessions).where(eq(sessions.id, req.params.id)).limit(1);
+  if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
+
+  const [updated] = await db.update(sessions).set({ mode }).where(eq(sessions.id, req.params.id)).returning();
+  res.json({ message: `Session mode updated to ${mode}`, session: updated });
+});
+
 // PATCH /sessions/:id/permissions — update permissions for an active session
 router.patch('/:id/permissions', async (req, res) => {
   const userId = getUserId(req);
@@ -140,9 +174,14 @@ router.patch('/:id/permissions', async (req, res) => {
   const { permissions } = req.body as {
     permissions: Array<{
       toolName: string;
-      effect: 'allow' | 'deny';
+      effect: 'allow' | 'deny' | 'require_approval';
       pathArg?: string;
       pathPattern?: string;
+      paramRules?: Array<{
+        field: string;
+        operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'not_in' | 'regex' | 'regex_not_match';
+        value: unknown;
+      }>;
       priority?: number;
     }>;
   };
@@ -158,6 +197,7 @@ router.patch('/:id/permissions', async (req, res) => {
         effect: p.effect,
         pathArg: p.pathArg ?? null,
         pathPattern: p.pathPattern ?? null,
+        paramRules: p.paramRules ?? null,
         priority: p.priority ?? 1,
       }))
     );
@@ -168,3 +208,4 @@ router.patch('/:id/permissions', async (req, res) => {
 });
 
 export default router;
+

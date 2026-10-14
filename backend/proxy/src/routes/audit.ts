@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/drizzle.js';
 import { auditLog, agents } from '../db/schema.js';
 import { eq, desc, and, inArray } from 'drizzle-orm';
+import { verifyAuditChain } from '../lib/audit.js';
 
 const router = Router();
 
@@ -11,6 +12,21 @@ function getUserId(req: Parameters<Parameters<typeof router.get>[1]>[0]): number
   const id = parseInt(raw, 10);
   return isNaN(id) ? null : id;
 }
+
+// GET /audit/verify — verify tamper-evident cryptographic hash chain
+router.get('/verify', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+  const { sessionId } = req.query as { sessionId?: string };
+  try {
+    const result = await verifyAuditChain(sessionId);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: `Verification failed: ${message}` });
+  }
+});
 
 // GET /audit — query audit log scoped to this user's agents
 router.get('/', async (req, res) => {
@@ -42,6 +58,10 @@ router.get('/', async (req, res) => {
       effect: auditLog.effect,
       reason: auditLog.reason,
       matchedPermissionId: auditLog.matchedPermissionId,
+      prevHash: auditLog.prevHash,
+      entryHash: auditLog.entryHash,
+      latencyMs: auditLog.latencyMs,
+      simulatedEffect: auditLog.simulatedEffect,
       timestamp: auditLog.timestamp,
     })
     .from(auditLog)
@@ -53,3 +73,4 @@ router.get('/', async (req, res) => {
 });
 
 export default router;
+

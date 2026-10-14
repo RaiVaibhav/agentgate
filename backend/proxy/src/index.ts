@@ -4,6 +4,7 @@ import agentsRouter from './routes/agents.js';
 import sessionsRouter from './routes/sessions.js';
 import auditRouter from './routes/audit.js';
 import servicesRouter from './routes/services.js';
+import approvalsRouter from './routes/approvals.js';
 
 const app = express();
 const PORT = process.env.PROXY_PORT ?? 3001;
@@ -17,6 +18,7 @@ app.get('/health', (_req, res) => {
 app.use('/agents', agentsRouter);
 app.use('/sessions', sessionsRouter);
 app.use('/services', servicesRouter);
+app.use('/approvals', approvalsRouter);
 app.use('/audit', auditRouter);
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

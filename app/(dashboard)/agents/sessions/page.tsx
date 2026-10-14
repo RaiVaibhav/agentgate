@@ -6,15 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { ShieldCheck, ShieldX, Clock, Loader2, Plus, Ban, Copy, Check } from 'lucide-react';
+
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const GATEWAY_BASE = 'http://localhost:3003';
 
-type Session = { id: string; agentId: string; serviceId: string; token: string; startedAt: string; expiresAt: string; status: 'active' | 'expired' | 'revoked' };
+type Session = {
+  id: string;
+  agentId: string;
+  serviceId: string;
+  token: string;
+  startedAt: string;
+  expiresAt: string;
+  status: 'active' | 'expired' | 'revoked';
+  mode?: 'enforce' | 'watch';
+};
 type Agent = { id: string; name: string };
 type Service = { id: string; agentId: string; name: string; tools: Array<{ name: string; description?: string }> };
-type PermDraft = { toolName: string; effect: 'allow' | 'deny'; pathArg: string; pathPattern: string; priority: number };
+type PermDraft = { toolName: string; effect: 'allow' | 'deny' | 'require_approval'; pathArg: string; pathPattern: string; priority: number };
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -42,6 +54,9 @@ function SessionRow({ session, agentName, serviceName }: { session: Session; age
     <div className="py-3 px-4 border-b border-gray-100 last:border-0">
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge status={session.status} />
+        <span className={`inline-flex items-center gap-1 text-[11px] font-mono font-medium px-2 py-0.5 rounded-full ${session.mode === 'watch' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+          {session.mode === 'watch' ? '👀 watch' : '🛡️ enforce'}
+        </span>
         <div className="flex-1 min-w-40">
           <p className="text-sm font-medium text-gray-900">{agentName}</p>
           <p className="text-xs text-gray-400">{serviceName} · {session.id.slice(0, 8)}...</p>
@@ -78,11 +93,13 @@ function SessionRow({ session, agentName, serviceName }: { session: Session; age
 function CreateSessionForm({ agents }: { agents: Agent[] }) {
   const [agentId, setAgentId] = useState('');
   const [duration, setDuration] = useState(60);
+  const [mode, setMode] = useState<'enforce' | 'watch'>('enforce');
   const [responseCheck, setResponseCheck] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ gatewayUrl: string } | null>(null);
   const [permissions, setPermissions] = useState<Record<string, PermDraft>>({});
+
 
   // Fetch services for selected agent
   const { data: agentServices } = useSWR<Service[]>(
@@ -92,13 +109,55 @@ function CreateSessionForm({ agents }: { agents: Agent[] }) {
   const selectedService = agentServices?.find((s) => s.id === selectedServiceId);
   const tools = (selectedService?.tools ?? []) as Array<{ name: string; description?: string }>;
 
-  // When service changes, reset permissions to all-allow (default MCP behavior)
+  // Determine sensible default effect based on tool name
+  function getSafeDefaultEffect(toolName: string): 'allow' | 'require_approval' | 'deny' {
+    const lower = toolName.toLowerCase();
+    if (['delete', 'remove', 'drop', 'destroy', 'transfer', 'pay', 'refund', 'charge', 'execute', 'shell', 'bash', 'eval'].some(k => lower.includes(k))) {
+      return 'require_approval';
+    }
+    if (['read', 'get', 'list', 'search', 'find', 'show', 'describe', 'status', 'view', 'check'].some(k => lower.includes(k))) {
+      return 'allow';
+    }
+    return 'require_approval';
+  }
+
+  function applyPreset(preset: 'safe' | 'allow_all' | 'deny_all') {
+    const currentTools = tools;
+    const updated: Record<string, PermDraft> = {};
+    currentTools.forEach((tool) => {
+      let effect: 'allow' | 'require_approval' | 'deny';
+      if (preset === 'safe') {
+        effect = getSafeDefaultEffect(tool.name);
+      } else if (preset === 'allow_all') {
+        effect = 'allow';
+      } else {
+        effect = 'deny';
+      }
+      updated[tool.name] = {
+        toolName: tool.name,
+        effect,
+        pathArg: '',
+        pathPattern: '',
+        priority: 1,
+      };
+    });
+    setPermissions(updated);
+  }
+
   function handleServiceChange(serviceId: string) {
     setSelectedServiceId(serviceId);
     const svc = agentServices?.find((s) => s.id === serviceId);
     const t = (svc?.tools ?? []) as Array<{ name: string }>;
     const initial: Record<string, PermDraft> = {};
-    t.forEach((tool) => { initial[tool.name] = { toolName: tool.name, effect: 'allow', pathArg: '', pathPattern: '', priority: 1 }; });
+    t.forEach((tool) => {
+      initial[tool.name] = {
+        toolName: tool.name,
+        effect: getSafeDefaultEffect(tool.name),
+        pathArg: '',
+        pathPattern: '',
+        priority: 1,
+      };
+    });
     setPermissions(initial);
   }
 
@@ -115,6 +174,7 @@ function CreateSessionForm({ agents }: { agents: Agent[] }) {
         agentId,
         serviceId: selectedServiceId,
         durationMinutes: duration,
+        mode,
         responseCheckEnabled: responseCheck,
         permissions: Object.values(permissions).flatMap((p, i) => {
           const base = {
@@ -172,31 +232,94 @@ function CreateSessionForm({ agents }: { agents: Agent[] }) {
             </div>
           </div>
 
-          {/* Response security check toggle */}
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <input
-              type="checkbox"
-              id="response-check"
-              checked={responseCheck}
-              onChange={e => setResponseCheck(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
-            />
-            <div>
-              <label htmlFor="response-check" className="text-sm font-medium text-gray-900 cursor-pointer">
-                🛡️ Response security scanner
-              </label>
-              <p className="text-xs text-gray-400">
-                Scans tool responses for leaked secrets, prompt injection, and PII before returning to agent.
+          {/* Session Mode Selector: Enforce vs Watch */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div
+              onClick={() => setMode('enforce')}
+              className={`p-3 rounded-md border cursor-pointer transition-all ${
+                mode === 'enforce' ? 'bg-white border-orange-500 shadow-xs ring-1 ring-orange-500' : 'bg-gray-100/60 border-gray-200 hover:bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-orange-600" />
+                <span className="text-sm font-semibold text-gray-900">Enforce Mode</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Active runtime protection. Blocks unpermitted tools and gates risky actions behind human approval.
+              </p>
+            </div>
+            <div
+              onClick={() => setMode('watch')}
+              className={`p-3 rounded-md border cursor-pointer transition-all ${
+                mode === 'watch' ? 'bg-white border-blue-500 shadow-xs ring-1 ring-blue-500' : 'bg-gray-100/60 border-gray-200 hover:bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                  <span className="text-blue-600">👀</span> Watch Mode (Shadow)
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Observe &amp; measure baseline. Tools execute freely, but full risk decisions are recorded for audit.
               </p>
             </div>
           </div>
 
+
+          {/* Response security check toggle using Radix Switch */}
+          <div className="flex items-center justify-between p-3.5 bg-gray-50/80 rounded-lg border border-gray-200">
+            <div>
+              <label htmlFor="response-check" className="text-sm font-semibold text-gray-900 cursor-pointer flex items-center gap-1.5">
+                <span>🛡️ Response Security Scanner</span>
+                <Badge variant="outline" className="text-[10px] bg-white text-gray-600">Real-time PII &amp; Injection</Badge>
+              </label>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Deep-scans tool responses for leaked credentials, prompt injections, and PII before returning payload to the agent.
+              </p>
+            </div>
+            <Switch
+              id="response-check"
+              checked={responseCheck}
+              onCheckedChange={setResponseCheck}
+            />
+          </div>
+
+
           {/* Tool permissions */}
           {tools.length > 0 && (
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-                <p className="text-xs font-semibold text-gray-500">Tool permissions for this session</p>
-                <p className="text-xs text-gray-400">All tools allowed by default. Deny what the agent shouldn't access.</p>
+            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                    <span>🛡️ Default-Deny Policy (Fail-Closed)</span>
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Unlisted tools are blocked automatically. Explicitly configure Allow, Require Approval, or Deny.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('safe')}
+                    className="text-[11px] px-2.5 py-1 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 rounded font-medium transition-colors"
+                  >
+                    Safe Defaults
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('allow_all')}
+                    className="text-[11px] px-2.5 py-1 bg-white hover:bg-gray-100 border border-gray-200 text-emerald-700 rounded font-medium transition-colors"
+                  >
+                    Allow All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPreset('deny_all')}
+                    className="text-[11px] px-2.5 py-1 bg-white hover:bg-gray-100 border border-gray-200 text-rose-700 rounded font-medium transition-colors"
+                  >
+                    Deny All
+                  </button>
+                </div>
               </div>
               {tools.map((tool) => {
                 const perm = permissions[tool.name];
@@ -204,21 +327,26 @@ function CreateSessionForm({ agents }: { agents: Agent[] }) {
                   .find((k: string) => ['path', 'file', 'source', 'destination', 'filepath', 'owner', 'repo', 'query'].includes(k)) ?? '';
 
                 return (
-                  <div key={tool.name} className="px-3 py-2 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center gap-3">
+                  <div key={tool.name} className="px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex-1">
-                        <p className="text-sm font-mono text-gray-800">{tool.name}</p>
-                        {tool.description && <p className="text-xs text-gray-400">{tool.description}</p>}
+                        <p className="text-sm font-mono font-medium text-gray-900">{tool.name}</p>
+                        {tool.description && <p className="text-xs text-gray-500 mt-0.5">{tool.description}</p>}
                       </div>
-                      <div className="flex gap-1.5">
+                      <div className="flex items-center gap-1.5">
                         <button type="button"
                           onClick={() => setPermissions(p => ({ ...p, [tool.name]: { ...p[tool.name], effect: 'allow' } }))}
-                          className={`text-xs px-2.5 py-1 rounded-full border ${perm?.effect === 'allow' ? 'bg-green-100 text-green-700 border-green-200' : 'text-gray-400 border-gray-200 hover:border-green-200'}`}>
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${perm?.effect === 'allow' ? 'bg-emerald-100 text-emerald-700 border-emerald-300 font-semibold' : 'text-gray-400 border-gray-200 hover:border-emerald-300'}`}>
                           Allow
                         </button>
                         <button type="button"
+                          onClick={() => setPermissions(p => ({ ...p, [tool.name]: { ...p[tool.name], effect: 'require_approval' } }))}
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${perm?.effect === 'require_approval' ? 'bg-amber-100 text-amber-800 border-amber-300 font-semibold' : 'text-gray-400 border-gray-200 hover:border-amber-300'}`}>
+                          Require Approval
+                        </button>
+                        <button type="button"
                           onClick={() => setPermissions(p => ({ ...p, [tool.name]: { ...p[tool.name], effect: 'deny' } }))}
-                          className={`text-xs px-2.5 py-1 rounded-full border ${perm?.effect === 'deny' ? 'bg-red-100 text-red-700 border-red-200' : 'text-gray-400 border-gray-200 hover:border-red-200'}`}>
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${perm?.effect === 'deny' ? 'bg-rose-100 text-rose-700 border-rose-300 font-semibold' : 'text-gray-400 border-gray-200 hover:border-rose-300'}`}>
                           Deny
                         </button>
                       </div>

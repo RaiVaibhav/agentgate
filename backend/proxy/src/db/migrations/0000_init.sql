@@ -3,6 +3,8 @@ CREATE TABLE "agents" (
   "user_id" integer NOT NULL,
   "name" text NOT NULL,
   "description" text,
+  "human_owner" text,
+  "mandate" text,
   "created_at" timestamp DEFAULT now() NOT NULL
 );
 
@@ -26,7 +28,9 @@ CREATE TABLE "sessions" (
   "token" text NOT NULL,
   "started_at" timestamp DEFAULT now() NOT NULL,
   "expires_at" timestamp NOT NULL,
-  "status" text NOT NULL DEFAULT 'active'
+  "status" text NOT NULL DEFAULT 'active',
+  "mode" text NOT NULL DEFAULT 'enforce',
+  "response_check_enabled" text NOT NULL DEFAULT 'false'
 );
 
 CREATE TABLE "tool_permissions" (
@@ -36,6 +40,7 @@ CREATE TABLE "tool_permissions" (
   "effect" text NOT NULL,
   "path_arg" text,
   "path_pattern" text,
+  "param_rules" jsonb,
   "priority" integer NOT NULL DEFAULT 1,
   "created_at" timestamp DEFAULT now() NOT NULL
 );
@@ -50,5 +55,26 @@ CREATE TABLE "audit_log" (
   "effect" text NOT NULL,
   "reason" text NOT NULL,
   "matched_permission_id" uuid REFERENCES "tool_permissions"("id"),
+  "prev_hash" text,
+  "entry_hash" text,
+  "latency_ms" integer,
+  "simulated_effect" text,
   "timestamp" timestamp DEFAULT now() NOT NULL
 );
+
+CREATE TABLE "approvals" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+  "session_id" uuid NOT NULL REFERENCES "sessions"("id") ON DELETE CASCADE,
+  "agent_id" uuid NOT NULL REFERENCES "agents"("id") ON DELETE CASCADE,
+  "service_id" uuid NOT NULL REFERENCES "services"("id") ON DELETE CASCADE,
+  "tool_name" text NOT NULL,
+  "tool_args" jsonb NOT NULL DEFAULT '{}',
+  "status" text NOT NULL DEFAULT 'pending',
+  "reason" text,
+  "requested_at" timestamp DEFAULT now() NOT NULL,
+  "resolved_at" timestamp,
+  "resolved_by" integer,
+  "decision_notes" text
+);
+
+

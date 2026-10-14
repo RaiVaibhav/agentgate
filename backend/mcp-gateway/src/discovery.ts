@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import type { DiscoveredTool } from './db/schema.js';
+import { decryptObject } from './crypto.js';
 
 // ── Remote URL-based discovery (HTTP+SSE transport) ───────────────────────────
 
@@ -7,13 +8,15 @@ export async function discoverToolsRemote(
   url: string,
   headers: Record<string, string> = {}
 ): Promise<DiscoveredTool[]> {
+  const activeHeaders = decryptObject(headers);
+
   // MCP over HTTP: POST tools/list to the remote server's endpoint
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json, text/event-stream',
-      ...headers,
+      ...activeHeaders,
     },
     body: JSON.stringify({
       jsonrpc: '2.0',

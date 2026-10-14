@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, Zap, ShieldCheck, ShieldX } from 'lucide-react';
+
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -225,15 +228,15 @@ export default function ServicesPage() {
             </div>
           </div>
 
-          {/* Config type tabs */}
-          <div className="flex gap-2 flex-wrap">
-            {(['catalog', 'remote', 'stdio'] as const).map((t) => (
-              <button key={t} onClick={() => setConfigType(t)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${configType === t ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-white text-gray-400 border-gray-200 hover:border-orange-200'}`}>
-                {t === 'catalog' ? '⭐ Known services' : t === 'remote' ? '🌐 Remote URL' : '⚙️ Local (npx/uvx)'}
-              </button>
-            ))}
-          </div>
+          {/* Config type tabs using Radix UI */}
+          <Tabs value={configType} onValueChange={(t) => setConfigType(t as 'catalog' | 'remote' | 'stdio')} className="w-full">
+            <TabsList className="grid grid-cols-3 max-w-md bg-gray-100 p-1 rounded-lg">
+              <TabsTrigger value="catalog" className="text-xs">⭐ Known Services</TabsTrigger>
+              <TabsTrigger value="remote" className="text-xs">🌐 Remote URL</TabsTrigger>
+              <TabsTrigger value="stdio" className="text-xs">⚙️ Local (npx/uvx)</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
 
           {/* Catalog picker */}
           {configType === 'catalog' && (

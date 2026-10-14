@@ -31,14 +31,43 @@ router.post('/', async (req, res) => {
   const userId = getUserId(req);
   if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
 
-  const { name, description } = req.body as Partial<NewAgent>;
+  const { name, description, humanOwner, mandate } = req.body as Partial<NewAgent>;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
 
   const [agent] = await db
     .insert(agents)
-    .values({ userId, name, description })
+    .values({ userId, name, description, humanOwner, mandate })
     .returning();
   res.status(201).json(agent);
+});
+
+// PATCH /agents/:id
+router.patch('/:id', async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+
+  const { name, description, humanOwner, mandate } = req.body as Partial<NewAgent>;
+
+  const [agent] = await db
+    .select()
+    .from(agents)
+    .where(and(eq(agents.id, req.params.id), eq(agents.userId, userId)))
+    .limit(1);
+
+  if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
+
+  const [updated] = await db
+    .update(agents)
+    .set({
+      ...(name !== undefined ? { name } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(humanOwner !== undefined ? { humanOwner } : {}),
+      ...(mandate !== undefined ? { mandate } : {}),
+    })
+    .where(eq(agents.id, req.params.id))
+    .returning();
+
+  res.json(updated);
 });
 
 // GET /agents/:id
@@ -66,5 +95,6 @@ router.delete('/:id', async (req, res) => {
     .where(and(eq(agents.id, req.params.id), eq(agents.userId, userId)));
   res.status(204).send();
 });
+
 
 export default router;

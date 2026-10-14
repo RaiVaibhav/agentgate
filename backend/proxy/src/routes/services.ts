@@ -3,6 +3,7 @@ import { db } from '../db/drizzle.js';
 import { services, agents } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import type { NewService } from '../db/schema.js';
+import { encryptObject, maskObject } from '../lib/crypto.js';
 
 const router = Router();
 
@@ -22,6 +23,14 @@ async function verifyAgentOwnership(agentId: string, userId: number): Promise<bo
   return !!agent;
 }
 
+function sanitizeService(service: typeof services.$inferSelect) {
+  return {
+    ...service,
+    headers: maskObject((service.headers as Record<string, any>) ?? {}),
+    env: maskObject((service.env as Record<string, any>) ?? {}),
+  };
+}
+
 // GET /services?agentId=xxx
 router.get('/', async (req, res) => {
   const userId = getUserId(req);
@@ -39,7 +48,7 @@ router.get('/', async (req, res) => {
     .from(services)
     .where(eq(services.agentId, agentId));
 
-  res.json(all);
+  res.json(all.map(sanitizeService));
 });
 
 // POST /services — create service
@@ -72,7 +81,6 @@ router.post('/', async (req, res) => {
   }
 
   if (!agentId || !name || (!command && !url)) {
-    // Extra debug: log what we received
     console.log('[services] Validation failed:', { agentId, name, command, url, hasServers: !!req.body.servers });
     res.status(400).json({ error: 'agentId, name, and either command or url are required' }); return;
   }
@@ -81,6 +89,10 @@ router.post('/', async (req, res) => {
     res.status(404).json({ error: 'Agent not found' }); return;
   }
 
+  // Encrypt sensitive headers and env values before storing at rest
+  const secureHeaders = encryptObject(headers ?? {});
+  const secureEnv = encryptObject(env ?? {});
+
   const [service] = await db
     .insert(services)
     .values({
@@ -88,14 +100,14 @@ router.post('/', async (req, res) => {
       name,
       command: command ?? null,
       args: args ?? [],
-      env: env ?? {},
+      env: secureEnv,
       url: url ?? null,
-      headers: headers ?? {},
+      headers: secureHeaders,
       tools: tools ?? [],
     })
     .returning();
 
-  res.status(201).json(service);
+  res.status(201).json(sanitizeService(service));
 });
 
 // GET /services/:id
@@ -109,7 +121,7 @@ router.get('/:id', async (req, res) => {
     res.status(404).json({ error: 'Service not found' }); return;
   }
 
-  res.json(service);
+  res.json(sanitizeService(service));
 });
 
 // DELETE /services/:id
