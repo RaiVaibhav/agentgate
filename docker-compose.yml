@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agentgate-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: agentgate
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agentgate"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    container_name: agentgate-gateway
+    restart: always
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      POSTGRES_URL: postgresql://postgres:postgrespassword@postgres:5432/agentgate
+      PROXY_SECRET: ${PROXY_SECRET:-super-secret-proxy-token-change-in-prod}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  proxy:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.proxy
+    container_name: agentgate-proxy
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      POSTGRES_URL: postgresql://postgres:postgrespassword@postgres:5432/agentgate
+      PROXY_SECRET: ${PROXY_SECRET:-super-secret-proxy-token-change-in-prod}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      GATEWAY_URL: ${GATEWAY_URL:-http://gateway:3003}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: agentgate-dashboard
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      POSTGRES_URL: postgresql://postgres:postgrespassword@postgres:5432/agentgate
+      AUTH_SECRET: ${AUTH_SECRET:-super-secret-auth-key-change-in-prod}
+      PROXY_URL: ${PROXY_URL:-http://proxy:3001}
+      GATEWAY_URL: ${GATEWAY_URL:-http://gateway:3003}
+      NEXT_PUBLIC_GATEWAY_URL: ${NEXT_PUBLIC_GATEWAY_URL:-http://localhost:3003}
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      proxy:
+        condition: service_started
+      gateway:
+        condition: service_started
+
+volumes:
+  pgdata:

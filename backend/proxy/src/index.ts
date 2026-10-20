@@ -7,7 +7,7 @@ import servicesRouter from './routes/services.js';
 import approvalsRouter from './routes/approvals.js';
 
 const app = express();
-const PORT = process.env.PROXY_PORT ?? 3001;
+const PORT = process.env.PORT ?? process.env.PROXY_PORT ?? 3001;
 
 app.use(express.json({ limit: '10mb' }));
 

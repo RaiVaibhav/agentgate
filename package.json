@@ -3,11 +3,13 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:all": "pnpm build && pnpm --filter @agent-permission/proxy build && pnpm --filter @agent-permission/mcp-gateway build",
     "start": "next start",
     "db:setup": "tsx lib/db/setup.ts",
     "db:seed": "tsx lib/db/seed.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:all": "drizzle-kit migrate && pnpm --filter @agent-permission/proxy db:migrate",
     "db:studio": "drizzle-kit studio",
     "proxy:dev": "pnpm --filter @agent-permission/proxy dev",
     "proxy:migrate": "pnpm --filter @agent-permission/proxy db:migrate",

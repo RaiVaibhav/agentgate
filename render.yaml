@@ -1,0 +1,93 @@
+# Render Blueprint Specification for AgentGate
+# https://render.com/docs/blueprint-spec
+
+databases:
+  - name: agentgate-db
+    databaseName: agentgate
+    user: agentgate
+    plan: free
+    ipAllowList: []
+
+services:
+  # 1. MCP Gateway Service — Streamable HTTP JSON-RPC endpoint for agents
+  - type: web
+    name: agentgate-gateway
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @agent-permission/mcp-gateway build
+    startCommand: node backend/mcp-gateway/dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: agentgate-db
+          property: connectionString
+      - key: PROXY_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+
+  # 2. Proxy Service — Session, Agent & Permission Engine REST API
+  - type: web
+    name: agentgate-proxy
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @agent-permission/proxy build
+    startCommand: node backend/proxy/dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: agentgate-db
+          property: connectionString
+      - key: PROXY_SECRET
+        fromService:
+          type: web
+          name: agentgate-gateway
+          envVarKey: PROXY_SECRET
+      - key: ENCRYPTION_KEY
+        fromService:
+          type: web
+          name: agentgate-gateway
+          envVarKey: ENCRYPTION_KEY
+      - key: GATEWAY_URL
+        fromService:
+          type: web
+          name: agentgate-gateway
+          property: host
+
+  # 3. Next.js Dashboard — User management, approval UI & audit logs
+  - type: web
+    name: agentgate-dashboard
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm db:migrate:all && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/catalog
+    envVars:
+      - key: POSTGRES_URL
+        fromDatabase:
+          name: agentgate-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: PROXY_URL
+        fromService:
+          type: web
+          name: agentgate-proxy
+          property: host
+      - key: GATEWAY_URL
+        fromService:
+          type: web
+          name: agentgate-gateway
+          property: host
+      - key: NEXT_PUBLIC_GATEWAY_URL
+        fromService:
+          type: web
+          name: agentgate-gateway
+          property: host
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: agentgate-dashboard
+          property: host

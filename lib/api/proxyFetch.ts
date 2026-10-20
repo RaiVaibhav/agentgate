@@ -5,7 +5,11 @@
  */
 import { getUser } from '@/lib/db/queries';
 
-const PROXY_URL = process.env.PROXY_URL ?? 'http://localhost:3001';
+let rawProxyUrl = process.env.PROXY_URL ?? 'http://localhost:3001';
+if (!rawProxyUrl.startsWith('http://') && !rawProxyUrl.startsWith('https://')) {
+  rawProxyUrl = `https://${rawProxyUrl}`;
+}
+const PROXY_URL = rawProxyUrl.replace(/\/$/, '');
 
 export async function proxyFetch(
   path: string,
@@ -19,7 +23,8 @@ export async function proxyFetch(
     });
   }
 
-  return fetch(`${PROXY_URL}${path}`, {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return fetch(`${PROXY_URL}${cleanPath}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

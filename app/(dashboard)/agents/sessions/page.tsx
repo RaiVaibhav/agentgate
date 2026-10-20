@@ -12,7 +12,11 @@ import { ShieldCheck, ShieldX, Clock, Loader2, Plus, Ban, Copy, Check } from 'lu
 
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
-const GATEWAY_BASE = 'http://localhost:3003';
+let rawGatewayBase = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3003';
+if (rawGatewayBase && !rawGatewayBase.startsWith('http://') && !rawGatewayBase.startsWith('https://')) {
+  rawGatewayBase = `https://${rawGatewayBase}`;
+}
+const GATEWAY_BASE = rawGatewayBase.replace(/\/$/, '');
 
 type Session = {
   id: string;

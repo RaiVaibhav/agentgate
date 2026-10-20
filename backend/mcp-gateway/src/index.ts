@@ -5,7 +5,7 @@ import { discoverTools } from './discovery.js';
 import { CATALOG } from './catalog.js';
 
 const app = express();
-const PORT = process.env.GATEWAY_PORT ?? 3003;
+const PORT = process.env.PORT ?? process.env.GATEWAY_PORT ?? 3003;
 
 app.use(express.json({ limit: '10mb' }));
 

@@ -1,0 +1,29 @@
+FROM node:22-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+
+# Copy dependency configuration files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY backend/proxy/package.json ./backend/proxy/
+COPY backend/mcp-gateway/package.json ./backend/mcp-gateway/
+COPY backend/mcp-proxy/package.json ./backend/mcp-proxy/
+COPY backend/dummy-app/package.json ./backend/dummy-app/
+COPY backend/mcp-server/package.json ./backend/mcp-server/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy gateway source
+COPY backend/mcp-gateway ./backend/mcp-gateway
+
+# Build TypeScript
+RUN pnpm --filter @agent-permission/mcp-gateway build
+
+EXPOSE 3003
+ENV PORT=3003
+ENV NODE_ENV=production
+
+CMD ["node", "backend/mcp-gateway/dist/index.js"]

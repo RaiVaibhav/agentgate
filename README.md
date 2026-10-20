@@ -9,6 +9,11 @@ AgentGate is a hosted gateway that sits between AI agents and MCP servers (GitHu
 
 The agent never gets the real API key. It only gets a gateway URL.
 
+> 📖 **Architecture & Roadmap:**  
+> - 📄 **[Master Architecture & MVP Build Specification (v2)](MASTER_ARCHITECTURE.md)**: Zero-config guardrail compiler (`@agentgate/compiler`) and stateful runtime ledger (`@agentgate/runtime`) for multi-turn transactional safety.
+> - 🚀 **[Production Deployment Guide](DEPLOYMENT.md)**: 1-click deployments on Render (`render.yaml`), Railway, and Docker Compose.
+> - 📊 **[Executive Summary & Strategic Thesis](EXECUTIVE_SUMMARY.md)**: Product evolution, market positioning, and autonomy readiness scoring.
+
 ---
 
 ## The Problem
