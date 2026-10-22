@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { proxyFetch } from '@/lib/api/proxyFetch';
 
 export async function GET() {
-  const res = await proxyFetch('/agents');
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  try {
+    const res = await proxyFetch('/agents');
+    if (!res.ok) {
+      return NextResponse.json([], { status: 200 });
+    }
+    const data = await res.json();
+    return NextResponse.json(Array.isArray(data) ? data : [], { status: 200 });
+  } catch {
+    return NextResponse.json([], { status: 200 });
+  }
 }
 
 export async function POST(req: NextRequest) {

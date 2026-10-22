@@ -15,6 +15,8 @@ import {
   Sparkles,
   Settings,
   CreditCard,
+  FileCode,
+  Play,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -125,7 +127,9 @@ function Header() {
     fetcher,
     { refreshInterval: 6000 }
   );
-  const pendingApprovalsCount = approvals?.filter((a) => a.status === 'pending').length ?? 0;
+  const pendingApprovalsCount = Array.isArray(approvals)
+    ? approvals.filter((a) => a.status === 'pending').length
+    : 0;
 
   return (
     <header className="border-b border-gray-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-50">
@@ -200,6 +204,42 @@ function Header() {
               }`}
             >
               MCP Tools
+            </Link>
+
+            <Link
+              href="/agents/contract"
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                pathname.startsWith('/agents/contract')
+                  ? 'bg-gray-100 text-gray-950 font-semibold'
+                  : 'text-gray-600 hover:text-gray-950 hover:bg-gray-50'
+              }`}
+            >
+              <FileCode className="h-3.5 w-3.5 text-indigo-500" />
+              Contract Studio
+            </Link>
+
+            <Link
+              href="/agents/simulator"
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                pathname.startsWith('/agents/simulator')
+                  ? 'bg-gray-100 text-gray-950 font-semibold'
+                  : 'text-gray-600 hover:text-gray-950 hover:bg-gray-50'
+              }`}
+            >
+              <Play className="h-3.5 w-3.5 text-emerald-500" />
+              Simulator
+            </Link>
+
+            <Link
+              href="/agents/sandbox"
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                pathname.startsWith('/agents/sandbox')
+                  ? 'bg-gray-100 text-gray-950 font-semibold'
+                  : 'text-gray-600 hover:text-gray-950 hover:bg-gray-50'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              AI Agent Sandbox
             </Link>
           </nav>
         </div>

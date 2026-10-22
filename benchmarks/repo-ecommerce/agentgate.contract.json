@@ -1,0 +1,92 @@
+{
+  "version": "2.0",
+  "tools": {
+    "issue_refund": {
+      "ownership": {
+        "lookupTool": "get_order",
+        "matchArg": "orderId",
+        "ownerField": "userId",
+        "equalsContext": "principalId"
+      },
+      "preconditions": [
+        {
+          "source": "src/repo-ecommerce/routes/refunds.ts:L26",
+          "lookupTool": "get_order",
+          "field": "status",
+          "op": "eq",
+          "value": "DELIVERED",
+          "onViolation": "BLOCK"
+        },
+        {
+          "source": "src/repo-ecommerce/routes/refunds.ts:L31",
+          "lookupTool": "get_order",
+          "field": "daysSinceDelivery",
+          "op": "lte",
+          "value": 14,
+          "onViolation": "BLOCK"
+        },
+        {
+          "source": "src/repo-ecommerce/routes/refunds.ts:L36",
+          "lookupTool": "get_order",
+          "argField": "amount_cents",
+          "targetField": "totalPaid_cents",
+          "op": "lte_field",
+          "onViolation": "BLOCK"
+        },
+        {
+          "source": "src/agent/prompt.md:L9",
+          "op": "eq",
+          "value": true,
+          "whenArg": {
+            "field": "reason",
+            "op": "eq",
+            "value": "DAMAGED"
+          },
+          "requirePriorTool": "verify_damage_report",
+          "matchArg": "orderId",
+          "outputField": "verified",
+          "onViolation": "BLOCK"
+        }
+      ],
+      "thresholds": [
+        {
+          "source": "src/agent/prompt.md:L10",
+          "argField": "amount_cents",
+          "op": "lte",
+          "value": 5000,
+          "unitConversionNote": "Converted $50 in prompt to 5000 cents",
+          "onViolation": "ESCALATE"
+        }
+      ],
+      "mutualExclusion": {
+        "source": "src/agent/prompt.md:L7",
+        "conflictingTools": [
+          "add_wallet_credit",
+          "apply_discount_code"
+        ],
+        "scopeKey": "orderId",
+        "onViolation": "BLOCK"
+      },
+      "budget": {
+        "source": "src/agent/prompt.md:L8",
+        "argField": "amount_cents",
+        "sharedAcrossTools": [
+          "issue_refund",
+          "add_wallet_credit"
+        ],
+        "scope": "principalId",
+        "windowSeconds": 86400,
+        "maxTotal": 10000,
+        "unitConversionNote": "Converted $100 in prompt to 10000 cents",
+        "onViolation": "BLOCK"
+      }
+    }
+  },
+  "unmappableRules": [
+    {
+      "source": "src/agent/prompt.md:L11",
+      "rawText": "Never refund VIP-tier users without calling their account manager.",
+      "reason": "No tool schema or output exposes a user 'tier' field."
+    }
+  ]
+}

@@ -16,12 +16,17 @@ import {
   Sparkles,
   Lock,
   Layers,
+  FileCode,
+  Play,
 } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const navItems = [
   { href: '/agents', icon: Bot, label: 'Agents & Mandates' },
+  { href: '/agents/sandbox', icon: Sparkles, label: 'AI Agent Sandbox' },
+  { href: '/agents/contract', icon: FileCode, label: 'Contract Studio' },
+  { href: '/agents/simulator', icon: Play, label: 'Attack Simulator' },
   { href: '/agents/services', icon: Server, label: 'MCP Services & Tools' },
   { href: '/agents/sessions', icon: ShieldCheck, label: 'Active Sessions' },
   { href: '/agents/approvals', icon: CheckCircle2, label: 'Human Approvals' },
@@ -38,7 +43,9 @@ export default function AgentsLayout({ children }: { children: React.ReactNode }
     fetcher,
     { refreshInterval: 6000 }
   );
-  const pendingCount = approvals?.filter((a) => a.status === 'pending').length ?? 0;
+  const pendingCount = Array.isArray(approvals)
+    ? approvals.filter((a) => a.status === 'pending').length
+    : 0;
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-68px)] max-w-7xl mx-auto w-full">

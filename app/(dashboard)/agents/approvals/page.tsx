@@ -70,12 +70,13 @@ export default function ApprovalsPage() {
   const [rejectingApproval, setRejectingApproval] = useState<Approval | null>(null);
   const [rejectReason, setRejectReason] = useState<string>('');
 
-  const pendingCount = approvals?.filter((a) => a.status === 'pending').length ?? 0;
-  const approvedCount = approvals?.filter((a) => a.status === 'approved').length ?? 0;
-  const rejectedCount = approvals?.filter((a) => a.status === 'rejected').length ?? 0;
-  const totalCount = approvals?.length ?? 0;
+  const approvalsList = Array.isArray(approvals) ? approvals : [];
+  const pendingCount = approvalsList.filter((a) => a.status === 'pending').length;
+  const approvedCount = approvalsList.filter((a) => a.status === 'approved').length;
+  const rejectedCount = approvalsList.filter((a) => a.status === 'rejected').length;
+  const totalCount = approvalsList.length;
 
-  const filteredApprovals = (approvals ?? []).filter((item) => {
+  const filteredApprovals = approvalsList.filter((item) => {
     if (activeTab === 'all') return true;
     return item.status === activeTab;
   });

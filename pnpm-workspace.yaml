@@ -1,4 +1,5 @@
 packages:
+  - 'packages/*'
   - 'backend/*'
   - 'backend/mcp-proxy'
   - 'backend/mcp-gateway'

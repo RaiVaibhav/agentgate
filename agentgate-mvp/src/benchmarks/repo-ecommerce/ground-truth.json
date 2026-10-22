@@ -1,0 +1,126 @@
+{
+  "version": "2.0",
+  "tools": {
+    "issue_refund": {
+      "ownership": {
+        "source": "routes/refunds.ts:L7",
+        "lookupTool": "get_order",
+        "matchArg": "orderId",
+        "ownerField": "userId",
+        "equalsContext": "principalId",
+        "onViolation": "BLOCK"
+      },
+      "preconditions": [
+        {
+          "id": "pre_delivered",
+          "source": "routes/refunds.ts:L10",
+          "lookupTool": "get_order",
+          "matchArg": "orderId",
+          "field": "status",
+          "op": "eq",
+          "value": "DELIVERED",
+          "onViolation": "BLOCK"
+        },
+        {
+          "id": "pre_window",
+          "source": "routes/refunds.ts:L13",
+          "lookupTool": "get_order",
+          "matchArg": "orderId",
+          "field": "daysSinceDelivery",
+          "op": "lte",
+          "value": 14,
+          "onViolation": "BLOCK"
+        },
+        {
+          "id": "pre_amount",
+          "source": "routes/refunds.ts:L16",
+          "lookupTool": "get_order",
+          "matchArg": "orderId",
+          "argField": "amount_cents",
+          "op": "lte_field",
+          "targetField": "totalPaid_cents",
+          "onViolation": "BLOCK"
+        },
+        {
+          "id": "pre_damage_verified",
+          "source": "agent/prompt.md:L5",
+          "whenArg": {
+            "field": "reason",
+            "op": "eq",
+            "value": "DAMAGED"
+          },
+          "lookupTool": "verify_damage_report",
+          "matchArg": "orderId",
+          "field": "verified",
+          "op": "eq",
+          "value": true,
+          "onViolation": "BLOCK"
+        }
+      ],
+      "thresholds": [
+        {
+          "id": "thresh_escalate",
+          "source": "agent/prompt.md:L4",
+          "argField": "amount_cents",
+          "op": "lte",
+          "value": 5000,
+          "unitConversionNote": "$50 normalized to 5000 cents",
+          "onViolation": "ESCALATE"
+        }
+      ],
+      "mutualExclusion": {
+        "source": "agent/prompt.md:L2",
+        "conflictingTools": ["add_wallet_credit", "apply_discount_code"],
+        "scopeKey": "orderId",
+        "onViolation": "BLOCK"
+      },
+      "budget": {
+        "source": "agent/prompt.md:L3",
+        "argField": "amount_cents",
+        "sharedAcrossTools": ["issue_refund", "add_wallet_credit"],
+        "scope": "principalId",
+        "windowSeconds": 86400,
+        "maxTotal": 10000,
+        "unitConversionNote": "$100 normalized to 10000 cents",
+        "onViolation": "BLOCK"
+      }
+    },
+    "add_wallet_credit": {
+      "preconditions": [],
+      "thresholds": [],
+      "mutualExclusion": {
+        "source": "agent/prompt.md:L2",
+        "conflictingTools": ["issue_refund", "apply_discount_code"],
+        "scopeKey": "orderId",
+        "onViolation": "BLOCK"
+      },
+      "budget": {
+        "source": "agent/prompt.md:L3",
+        "argField": "amount_cents",
+        "sharedAcrossTools": ["issue_refund", "add_wallet_credit"],
+        "scope": "principalId",
+        "windowSeconds": 86400,
+        "maxTotal": 10000,
+        "unitConversionNote": "$100 normalized to 10000 cents",
+        "onViolation": "BLOCK"
+      }
+    },
+    "apply_discount_code": {
+      "preconditions": [],
+      "thresholds": [],
+      "mutualExclusion": {
+        "source": "agent/prompt.md:L2",
+        "conflictingTools": ["issue_refund", "add_wallet_credit"],
+        "scopeKey": "orderId",
+        "onViolation": "BLOCK"
+      }
+    }
+  },
+  "unmappableRules": [
+    {
+      "source": "agent/prompt.md:L6",
+      "rawText": "Never issue a refund to VIP-tier users without calling their dedicated concierge first.",
+      "reason": "No 'tier' or 'isVip' field found in get_order or any other tool schema"
+    }
+  ]
+}
